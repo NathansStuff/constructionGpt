@@ -1,0 +1,30 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment and virtual environment files
+.env
+venv/
+env/
+myenv/
+
+# IDE files
+.vscode/
+.idea/
+
+# Compiled Python modules
+*.pyc
+*.pyo
+*.pyd
+
+# Build and distribution directories
+build/
+dist/
+*.egg-info/
+
+# Logs and temporary files
+*.log
+*.swp
+*.swo
+.DS_Store
