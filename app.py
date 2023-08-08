@@ -1,8 +1,9 @@
 import os
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
-from src.customGpt import ask_and_get_answer, ask_with_memory, insert_or_fetch_embeddings
+from src.customGpt import ask_with_memory_and_prompt, insert_or_fetch_embeddings
 from flask import Flask, jsonify, request
+import pinecone
 
 app = Flask(__name__)
 
@@ -11,46 +12,41 @@ app = Flask(__name__)
 def load_vector_store():
     # Initialize Pinecone
     app.vector_store = insert_or_fetch_embeddings(os.environ.get('PINECONE_INDEX'))
+    # Load the vector store
+    pinecone.init(api_key=os.environ.get('PINECONE_API_KEY'), environment=os.environ.get('PINECONE_ENV'))
+    index = pinecone.Index('test-index')
+    app.index = index
 
 @app.route('/')
 def home():
     return 'Hello World'
 
+def document_to_dict(document):
+    return {
+        'page_content': document.page_content,
+        'metadata': document.metadata
+    }
 
-@app.route('/askwithmemory', methods=['POST'])
+@app.route('/ask', methods=['POST'])
 def ask_question_with_memory():
     data = request.get_json()
 
-    # Convert JSON chat history to the required format
+    # Convert JSON chat history to the required format (from json dict to tuple)
     chat_history = [(str(x[0]), str(x[1])) for x in data.get('chat_history', [])]
     question = data.get('question', '')
 
-    result, updated_chat_history = ask_with_memory(app.vector_store, question, chat_history)
-
-    # Convert updated chat history back to JSON format
-    updated_chat_history_json = [[str(x[0]), str(x[1])] for x in updated_chat_history]
-
-    response = {
-        'answer': result['answer'],
-        'chat_history': updated_chat_history_json
-    }
-
-    return jsonify(response)
-
-@app.route('/ask', methods=['POST'])
-def ask_question():
-    data = request.get_json()
-
-    question = data.get('question', '')
-
-    result = ask_and_get_answer(app.vector_store, question)
+    ai_response  = ask_with_memory_and_prompt(app.vector_store, question, chat_history)
+    answer = ai_response['answer']
+    chat_history.append((question, answer))
 
     response = {
-        'answer': result,
-    }
+            'question': ai_response['question'],
+            'answer': ai_response['answer'],
+            'chat_history': chat_history,
+            'source_documents': [document_to_dict(doc) for doc in ai_response['source_documents']]
+        }
 
-    return jsonify(response)
-
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)

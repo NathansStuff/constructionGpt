@@ -1,5 +1,4 @@
 import os
-import json
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
 
@@ -23,29 +22,24 @@ def insert_or_fetch_embeddings(index_name, chunks=None):
 
     return vector_store
 
-def ask_with_memory(vector_store, question, chat_history=[]):
+def ask_with_memory_and_prompt(vectorstore, question, chat_history=[]):
+    from langchain.llms import OpenAI
     from langchain.chains import ConversationalRetrievalChain
-    from langchain.chat_models import ChatOpenAI
+    from langchain.chains import LLMChain
+    from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
+    from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
-    llm = ChatOpenAI(model='gpt-3.5-turbo', temperature=1)
-    retriever = vector_store.as_retriever(search_type='similarity', search_kwars={'k': 3})
+    llm = OpenAI(temperature=0)
+    question_generator = LLMChain(llm=llm, prompt=CONDENSE_QUESTION_PROMPT) # To get the question as a vector
+    doc_chain = load_qa_with_sources_chain(llm, chain_type="map_reduce")
 
-    chain = ConversationalRetrievalChain.from_llm(llm, retriever)
-    print(chat_history)
-    result = chain({'question': question, 'chat_history': chat_history})
-    chat_history.append((question, result['answer']))
+    chain = ConversationalRetrievalChain(
+        retriever=vectorstore.as_retriever(),
+        question_generator=question_generator,
+        combine_docs_chain=doc_chain,
+        return_source_documents=True
+    )
+    chat_history = []
+    result = chain({"question": question, "chat_history": chat_history})
 
-    return result, chat_history
-
-def ask_and_get_answer(vector_store, q):
-    from langchain.chains import RetrievalQA
-    from langchain.chat_models import ChatOpenAI
-
-    llm = ChatOpenAI(model='gpt-3.5-turbo', temperature=1)
-
-    retriever = vector_store.as_retriever(search_type='similarity', search_kwars={'k': 3})
-
-    chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
-
-    answer=chain.run(q)
-    return answer
+    return result
