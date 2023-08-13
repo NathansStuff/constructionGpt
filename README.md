@@ -1,4 +1,6 @@
 venv\Scripts\activate
+python -m venv venv
+pip install -r requirements.txt
 
 <!--
 title: 'Serverless Framework Python Flask API on AWS'
