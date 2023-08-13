@@ -2,13 +2,13 @@ import os
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
 from src.customGpt import ask_with_memory_and_prompt, insert_or_fetch_embeddings
-from flask import Flask, jsonify, request
+from flask import Flask, request
 import pinecone
 
 app = Flask(__name__)
 
 # Load the vector store on app load
-@app.before_first_request
+@app.before_request
 def load_vector_store():
     # Initialize Pinecone
     app.vector_store = insert_or_fetch_embeddings(os.environ.get('PINECONE_INDEX'))
@@ -49,4 +49,5 @@ def ask_question_with_memory():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
